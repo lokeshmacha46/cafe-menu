@@ -7,27 +7,31 @@ pipeline {
 
     stages {
 
-        stage('Build') {
+        stage('Prepare Website') {
             steps {
                 sh '''
                     mkdir -p build
                     cp index.html build/
-                    cp style.css build/
-                    cp script.js build/
+                    cp style.css build/ || true
+                    cp script.js build/ || true
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to EC2') {
             steps {
                 sh '''
+                    ssh -o StrictHostKeyChecking=no $SERVER '
+                        sudo mkdir -p /var/www/html
+                    '
+
                     scp -o StrictHostKeyChecking=no -r build/* $SERVER:/tmp/
 
-                    ssh -o StrictHostKeyChecking=no $SERVER "
-                    sudo rm -rf /var/www/html/*
-                    sudo cp -r /tmp/* /var/www/html/
-                    sudo systemctl restart apache2
-                    "
+                    ssh -o StrictHostKeyChecking=no $SERVER '
+                        sudo rm -rf /var/www/html/*
+                        sudo cp -r /tmp/* /var/www/html/
+                        sudo systemctl restart apache2
+                    '
                 '''
             }
         }
@@ -35,7 +39,7 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment successful'
+            echo 'Website deployed successfully'
         }
 
         failure {
